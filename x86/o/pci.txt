@@ -1,0 +1,50 @@
+Class          = Network (Unknown)
+Vendor ID      = 144ah, ADLINK Technology Inc 
+Device ID      = 7841h, PCI-7841 
+PCI index      = 0h
+Class Codes    = 028000h
+Revision ID    = 2h
+Bus number     = 3
+Device number  = 13
+Function num   = 0
+Status Reg     = 280h
+Command Reg    = 1h
+	I/O space access enabled
+	Memory space access disabled
+	Bus Master disabled
+	Special Cycle operations ignored
+	Memory Write and Invalidate disabled
+	Palette Snooping disabled
+	Parity Checking disabled
+	Data/Address stepping disabled
+	SERR# driver disabled
+	Fast back-to-back transactions to different agents disabled
+Header type    = 0h Single-function
+BIST           = 0h Build-in-self-test not supported
+Latency Timer  = 0h
+Cache Line Size= 8h un-cacheable
+PCI IO Address  = cc00h length 128 enabled
+PCI IO Address  = c800h length 256 enabled
+PCI IO Address  = c400h length 256 enabled
+Subsystem Vendor ID = 144ah
+Subsystem ID        = 7841h
+Max Lat        = 0ns
+Min Gnt        = 0ns
+PCI Int Pin    = INT A
+Interrupt line = 5
+CPU Interrupt  = 5h
+Device Dependent Registers:
+0x40: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0x50: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0x60: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0x70: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0x80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0x90: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0xA0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0xB0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0xC0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0xD0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0xE0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+0xF0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+
