@@ -51,41 +51,56 @@ int main(int32_t argc, char *argv[])
  C7841 c7841;
  c7841.Init();
  
- S7841Port s7841Port;
- s7841Port.ExtendedMode=true;
- s7841Port.Arbitration=0xFFFFFFFF;
- s7841Port.ArbitrationMask=0xFFFFFFFF;//маска инверсная?
- s7841Port.Speed=CAN7841_SPEED_500KBS;
+ uint32_t arbitration=0xFFFFFFFF;
+ uint32_t arbitration_mask=0xFFFFFFFF;//маска инверсная?
  
- c7841.CANConfig(0,s7841Port);
- c7841.CANConfig(1,s7841Port);
+ C7841CANChannel c7841CANChannel(true,arbitration,arbitration_mask,C7841CANChannel::CAN7841_SPEED_500KBS);
  
+ c7841.CANConfig(0,c7841CANChannel);
+ c7841.CANConfig(1,c7841CANChannel);
  
- S7841CANPackage s7841CANPackage;
- s7841CANPackage.Arbitration=0;
- s7841CANPackage.RTR=false;
- s7841CANPackage.Length=8;
- for(uint8_t n=0;n<s7841CANPackage.Length;n++) s7841CANPackage.Data[n]=n;
+ C7841CANPackage c7841CANPackage(0,false,8);
+ for(uint8_t n=0;n<c7841CANPackage.Length;n++)c7841CANPackage.Data[n]=n;
+ 
+ c7841.CANInterruptAttach();
  while(1)
  {  
- // if (c7841.SendPackage(0,s7841CANPackage)==true) printf("Send package ok.\r\n");
-  delay(1);
-  if (c7841.GetPackage(0,s7841CANPackage)==true)
+  //задаём таймер ожидания прерывания
+  sigevent event_timeout;//событие "время вышло"
+  uint64_t timeout=10000;
+  SIGEV_UNBLOCK_INIT(&event_timeout);
+  TimerTimeout(CLOCK_REALTIME,_NTO_TIMEOUT_INTR,&event_timeout,&timeout,NULL);//тайм-аут ядра на ожидание прерывания
+  //ждём прерывания
+  if (InterruptWait(0,NULL)<0) continue;//прерывание не поступало
+ // if (c7841.SendPackage(0,c7841CANPackage)==true) printf("Send package ok.\r\n");
+  printf("----------\r\n");
+  std::vector<C7841CANPackage> vector_C7841CANPackage;
+  if (c7841.GetPackage(0,vector_C7841CANPackage)==true)
   {
-   printf("Arb:%08x ",s7841CANPackage.Arbitration);
-   printf("Len:%02x Data:",s7841CANPackage.Length);
-   for(uint8_t n=0;n<s7841CANPackage.Length;n++) printf("%02x ",s7841CANPackage.Data[n]);
-   printf("\r\n");
+   printf("Channel 1\r\n");
+   size_t size=vector_C7841CANPackage.size();
+   for(size_t v=0;v<size;v++)
+   {
+    printf("Arb:%08x ",vector_C7841CANPackage[v].Arbitration);
+    printf("Len:%02x Data:",vector_C7841CANPackage[v].Length);
+    for(uint8_t n=0;n<vector_C7841CANPackage[v].Length;n++) printf("%02x ",vector_C7841CANPackage[v].Data[n]);
+    printf("\r\n");
+   }
   }
-  if (c7841.GetPackage(1,s7841CANPackage)==true)
+  if (c7841.GetPackage(1,vector_C7841CANPackage)==true)
   {
-   printf("Arb:%08x ",s7841CANPackage.Arbitration);
-   printf("Len:%02x Data:",s7841CANPackage.Length);
-   for(uint8_t n=0;n<s7841CANPackage.Length;n++) printf("%02x ",s7841CANPackage.Data[n]);
-   printf("\r\n");
+   printf("Channel 2\r\n");
+   size_t size=vector_C7841CANPackage.size();
+   for(size_t v=0;v<size;v++)
+   {
+    printf("Arb:%08x ",vector_C7841CANPackage[v].Arbitration);
+    printf("Len:%02x Data:",vector_C7841CANPackage[v].Length);
+    for(uint8_t n=0;n<vector_C7841CANPackage[v].Length;n++) printf("%02x ",vector_C7841CANPackage[v].Data[n]);
+    printf("\r\n");
+   }
   }
- }
- 
+  c7841.ClearIRQ();
+ } 
  return(EXIT_SUCCESS);
 }
 
