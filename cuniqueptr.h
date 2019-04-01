@@ -39,6 +39,11 @@ class CUniquePtr
    if (c_Ptr!=NULL) delete(c_Ptr);  	
    c_Ptr=c_Ptr_Set;
   }
+  void Release(void)//освободить объект
+  {
+   if (c_Ptr!=NULL) delete(c_Ptr);  	
+   c_Ptr=NULL;
+  }
  //запрещаем операции копирования и присваивания 
  private:
   CUniquePtr(const CUniquePtr<C> &cUniquePtr){};//конструктор копирования запрещён

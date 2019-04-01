@@ -23,9 +23,10 @@ class C7841CANPackage
   uint8_t Length;//длина пакета
   uint8_t Data[8];//данные пакета
   uint32_t ChannelIndex;//индекс канала
+  bool ExtendedMode;//расширенный режим
  //-конструктор----------------------------------------------------------------------------------------
  public:
-  C7841CANPackage(uint32_t arbitration=0,bool rtr=false,uint8_t length=0,uint32_t channel_index=0);
+  C7841CANPackage(bool extended_mode=false,uint32_t arbitration=0,bool rtr=false,uint8_t length=0,uint32_t channel_index=0);
  //-деструктор-----------------------------------------------------------------------------------------
   ~C7841CANPackage(void);
  //-открытые функции-----------------------------------------------------------------------------------

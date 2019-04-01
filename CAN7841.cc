@@ -66,8 +66,9 @@ int main(int32_t argc, char *argv[])
  {  
   delay(1000);
   std::vector<C7841CANPackage> vector_C7841CANPackage;
-  c7841.GetPackage(vector_C7841CANPackage);
+  c7841.GetReceivedPackage(vector_C7841CANPackage);
   size_t size=vector_C7841CANPackage.size();
+  if (size>0) printf("Received %i \r\n",size);
   for(size_t v=0;v<size;v++)
   {
    printf("Channel %i ",vector_C7841CANPackage[v].ChannelIndex);
