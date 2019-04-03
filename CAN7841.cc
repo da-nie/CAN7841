@@ -14,7 +14,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "c7841.h"
+#include "cpci7841.h"
 
 //****************************************************************************************************
 //сигналы
@@ -46,36 +46,44 @@ int main(int32_t argc, char *argv[])
  signal(SIGTERM,Signal_Exit);
  signal(SIGKILL,Signal_Exit);
  signal(SIGCLD,Signal_Exit);
- signal(SIGQUIT,Signal_Exit); 
+ signal(SIGQUIT,Signal_Exit);
 
- C7841 c7841;
- c7841.Init();
+ CPCI7841 cPCI7841;
+ cPCI7841.Init();
  
- uint32_t arbitration=0xFFFFFFFF;
+ uint32_t arbitration=0;//0xFFFFFFFF;
  uint32_t arbitration_mask=0xFFFFFFFF;//маска инверсная?
  
- C7841CANChannel c7841CANChannel(true,arbitration,arbitration_mask,C7841CANChannel::CAN7841_SPEED_500KBS);
+ CPCI7841CANChannel cPCI7841CANChannel(true,arbitration,arbitration_mask,CPCI7841CANChannel::CAN_SPEED_500KBS);
  
- c7841.CANConfig(0,c7841CANChannel);
- c7841.CANConfig(1,c7841CANChannel);
+ cPCI7841.CANConfig(0,cPCI7841CANChannel);
+ cPCI7841.CANConfig(0,cPCI7841CANChannel);
  
- C7841CANPackage c7841CANPackage(0,false,8);
- for(uint8_t n=0;n<c7841CANPackage.Length;n++)c7841CANPackage.Data[n]=n; 
+ CPCI7841CANPackage cPCI7841CANPackage(true,0,false,8,1);
+ for(uint8_t n=0;n<cPCI7841CANPackage.Length;n++) cPCI7841CANPackage.Data[n]=n; 
 
+ int32_t index=0;
  while(1)
  {  
+  cPCI7841CANPackage.Data[0]=index&0xff;
+  cPCI7841CANPackage.ChannelIndex=index%2;
+  cPCI7841.SendPackage(cPCI7841CANPackage);
+  index++;
   delay(1000);
-  std::vector<C7841CANPackage> vector_C7841CANPackage;
-  c7841.GetReceivedPackage(vector_C7841CANPackage);
-  size_t size=vector_C7841CANPackage.size();
-  if (size>0) printf("Received %i \r\n",size);
-  for(size_t v=0;v<size;v++)
+  std::vector<CPCI7841CANPackage> vector_CPCI7841CANPackage;
+  cPCI7841.GetReceivedPackage(vector_CPCI7841CANPackage);
+  size_t size=vector_CPCI7841CANPackage.size();
+  if (size>0) 
   {
-   printf("Channel %i ",vector_C7841CANPackage[v].ChannelIndex);
-   printf("Arb:%08x ",vector_C7841CANPackage[v].Arbitration);
-   printf("Len:%02x Data:",vector_C7841CANPackage[v].Length);
-   for(uint8_t n=0;n<vector_C7841CANPackage[v].Length;n++) printf("%02x ",vector_C7841CANPackage[v].Data[n]);
-   printf("\r\n");
+   printf("Received %i \r\n",size);
+   for(size_t v=0;v<size;v++)
+   {
+    printf("Channel %i ",vector_CPCI7841CANPackage[v].ChannelIndex);
+    printf("Arb:%08x ",vector_CPCI7841CANPackage[v].Arbitration);
+    printf("Len:%02x Data:",vector_CPCI7841CANPackage[v].Length);
+    for(uint8_t n=0;n<vector_CPCI7841CANPackage[v].Length;n++) printf("%02x ",vector_CPCI7841CANPackage[v].Data[n]);
+    printf("\r\n");
+   }
   }
  } 
  return(EXIT_SUCCESS);

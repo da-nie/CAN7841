@@ -1,5 +1,5 @@
-#ifndef C_7841_CAN_CHANNEL_H
-#define C_7841_CAN_CHANNEL_H
+#ifndef C_PCI_7841_CAN_CHANNEL_H
+#define C_PCI_7841_CAN_CHANNEL_H
 
 //****************************************************************************************************
 //Класс настройки канала
@@ -9,41 +9,41 @@
 //подключаемые библиотеки
 //****************************************************************************************************
 #include <stdint.h>
-#include "c7841userspeed.h"
+#include "cpci7841userspeed.h"
 
 //****************************************************************************************************
 //Класс настройки канала
 //****************************************************************************************************
 
-class C7841CANChannel
+class CPCI7841CANChannel
 {
  //-перечисления---------------------------------------------------------------------------------------
  public: 
   //скорость
-  enum CAN7841_SPEED
+  enum CAN_SPEED
   {
-   CAN7841_SPEED_125KBS,//скорость 125 кбит/с
-   CAN7841_SPEED_250KBS,//скорость 250 кбит/с
-   CAN7841_SPEED_500KBS,//скорость 500 кбит/с
-   CAN7841_SPEED_1MBS,//скорость 1 Мбит/с
-   CAN7841_SPEED_USER //скорость опеределяется пользователем
+   CAN_SPEED_125KBS,//скорость 125 кбит/с
+   CAN_SPEED_250KBS,//скорость 250 кбит/с
+   CAN_SPEED_500KBS,//скорость 500 кбит/с
+   CAN_SPEED_1MBS,//скорость 1 Мбит/с
+   CAN_SPEED_USER //скорость опеределяется пользователем
   };	
  //-переменные-----------------------------------------------------------------------------------------
  public:
   bool ExtendedMode;//расширенный режим 
   uint32_t Arbitration;//арбитраж
   uint32_t ArbitrationMask;//маска арбитража
-  CAN7841_SPEED Speed;//скорость 
-  C7841UserSpeed c7841UserSpeed;//настройки пользовательской скорости (для режима CAN7841_SPEED_USER)
+  CAN_SPEED Speed;//скорость 
+  CPCI7841UserSpeed cPCI7841UserSpeed;//настройки пользовательской скорости (для режима CAN7841_SPEED_USER)
  //-конструктор----------------------------------------------------------------------------------------
  public:
-  C7841CANChannel(bool extended_mode=false,uint32_t arbitration=0,uint32_t arbitration_mask=0xffffffff,CAN7841_SPEED speed=CAN7841_SPEED_1MBS,C7841UserSpeed c7841UserSpeed_Set=C7841UserSpeed());
+  CPCI7841CANChannel(bool extended_mode=false,uint32_t arbitration=0,uint32_t arbitration_mask=0xffffffff,CAN_SPEED speed=CAN_SPEED_1MBS,CPCI7841UserSpeed cPCI7841UserSpeed_Set=CPCI7841UserSpeed());
  //-деструктор-----------------------------------------------------------------------------------------
-  ~C7841CANChannel(void);
+  ~CPCI7841CANChannel(void);
  //-открытые функции-----------------------------------------------------------------------------------
  public:
   bool IsExtendedMode(void) const;//получить, расширенный ли режим 
-  bool IsSpeed(CAN7841_SPEED speed) const;//получить, соответствует ли скорость заданной
+  bool IsSpeed(CAN_SPEED speed) const;//получить, соответствует ли скорость заданной
  //-закрытые функции-----------------------------------------------------------------------------------
  private: 
 };

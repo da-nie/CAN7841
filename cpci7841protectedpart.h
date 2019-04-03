@@ -1,8 +1,8 @@
-#ifndef C_7841_PROTECTED_PART_H
-#define C_7841_PROTECTED_PART_H
+#ifndef C_PCI_7841_PROTECTED_PART_H
+#define C_PCI_7841_PROTECTED_PART_H
 
 //****************************************************************************************************
-//Класс защищённой части платы CAN 7841
+//Класс защищённой части платы CAN PCI-7841
 //****************************************************************************************************
 
 //****************************************************************************************************
@@ -14,40 +14,37 @@
 #include <sys/neutrino.h>
 
 #include "ciocontrol.h"
-#include "c7841canpackage.h"
-#include "c7841canchannel.h"
+#include "cpci7841canpackage.h"
+#include "cpci7841canchannel.h"
 #include "cuniqueptr.h"
 #include "cmutex.h"
 #include "cringbuffer.h"
 
 //****************************************************************************************************
-//Класс защищённой части платы CAN 7841
+//Класс защищённой части платы CAN PCI-7841
 //****************************************************************************************************
 
-//Сейчас передача при добавлении пакета НЕ НАЧИНАЕТСЯ! Это нужно исправить.
-//Прерывание показывает КАКОЙ канал готов передавать - нужно ДВА буфере для отправки данных.
-
-
-
 //класс защищённых переменных
-class C7841ProtectedPart
+class CPCI7841ProtectedPart
 {
  //-переменные-----------------------------------------------------------------------------------------
  public:  	  	  	
   CMutex cMutex;//мютекс для доступа к классу
+  static const uint32_t CAN_CHANNEL_AMOUNT=2;//количество каналов на плате  
  private:  
   int32_t ISR_CANInterruptID;//идентификатор прерывания CAN
   pci_dev_info PCI_Dev_Info;//описатель устройства   
   void *DeviceHandle;//дескриптор устройства
   bool ExitThread;//нужно ли выходить из потока
-  std::vector<CIOControl> vector_CIOControl;//массив адресов ввода-вывода платы
-  CUniquePtr<CRingBuffer<C7841CANPackage> > cRingBuffer_Receiver_Ptr;//указатель на класс буфера принятых данных
-  CUniquePtr<CRingBuffer<C7841CANPackage> > cRingBuffer_Transmitter_Ptr;//указатель на класс буфера передаваемых данных
+  std::vector<CIOControl> vector_CIOControl;//массив адресов ввода-вывода платы 
+  CUniquePtr<CRingBuffer<CPCI7841CANPackage> > cRingBuffer_Receiver_Ptr;//указатель на класс буфера принятых данных
+  bool TransmittIsDone[CAN_CHANNEL_AMOUNT];//завершена ли передача в канале
+  CUniquePtr<CRingBuffer<CPCI7841CANPackage> > cRingBuffer_Transmitter_Ptr[CAN_CHANNEL_AMOUNT];//указатель на класс буфера передаваемых данных
  //-конструктор----------------------------------------------------------------------------------------
  public:
-  C7841ProtectedPart(uint32_t receiver_buffer_size=1,uint32_t transmitter_buffer_size=1);//конструктор
+  CPCI7841ProtectedPart(uint32_t receiver_buffer_size=1,uint32_t transmitter_buffer_size=1);//конструктор
  //-деструктор-----------------------------------------------------------------------------------------
-  ~C7841ProtectedPart();//деструктор
+  ~CPCI7841ProtectedPart();//деструктор
  //-открытые функции-----------------------------------------------------------------------------------
  public:
   void ClearIRQ(void);//сбросить флаг прерывания
@@ -61,16 +58,19 @@ class C7841ProtectedPart
   void SetExitThread(bool state);//задать, нужно ли выходить из потока
   bool InitPCI(uint32_t vendor_id,uint32_t device_id,uint32_t device_index);//инициализировать PCI
   void ReleasePCI(void);//освободить PCI
-  bool CANConfig(uint32_t channel,const C7841CANChannel &c7841CANChannel_Set);//настроить порт
-  bool GetReceivedPackage(C7841CANPackage &c7841CANPackage);//получить принятый пакет
-  bool SendPackage(const C7841CANPackage &c7841CANPackage);//добавить пакет для отправки
-  void OnInterrupt(uint32_t channel_amount);//обработчик прерывания
+  bool CANConfig(uint32_t channel,const CPCI7841CANChannel &cPCI7841CANChannel_Set);//настроить порт
+  bool GetReceivedPackage(CPCI7841CANPackage &cPCI7841CANPackage);//получить принятый пакет
+  bool SendPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//добавить пакет для отправки
+  void OnInterrupt(void);//обработчик прерывания
+  void ClearTransmitterBuffer(void);//очистить буфер передатчика
+  void ClearReceiverBuffer(void);//очистить буфер приёмника
+  void TransmittProcessing(uint32_t channel);//выполнить передачу данных, если это возможно
  //-закрытые функции-----------------------------------------------------------------------------------
  private:
   void OnInterruptChannel(uint32_t channel);//обработчик прерывания канала 
   void ReceivePackageChannel(uint32_t channel);//получить пакеты с канала
   void TransmittPackageChannel(uint32_t channel);//отправить пакеты в канал
-  bool TransmittPackage(const C7841CANPackage &c7841CANPackage);//добавить пакет для отправки
+  bool TransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//добавить пакет для отправки
 };
 #endif
 

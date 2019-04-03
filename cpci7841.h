@@ -1,8 +1,8 @@
-#ifndef C_7841_H
-#define C_7841_H
+#ifndef C_PCI_7841_H
+#define C_PCI_7841_H
 
 //****************************************************************************************************
-//Класс управления платой CAN 7841
+//Класс управления платой CAN PCI-7841
 //****************************************************************************************************
 
 //****************************************************************************************************
@@ -14,11 +14,11 @@
 #include <sys/neutrino.h>
 
 #include "ciocontrol.h"
-#include "c7841canpackage.h"
-#include "c7841canchannel.h"
+#include "cpci7841canpackage.h"
+#include "cpci7841canchannel.h"
 #include "cuniqueptr.h"
 #include "cthread.h"
-#include "c7841protectedpart.h"
+#include "cpci7841protectedpart.h"
 
 //****************************************************************************************************
 //структуры
@@ -26,7 +26,7 @@
 
 #pragma pack(1)
 //регистр статуса
-struct S7841StatusReg
+struct SPCI7841StatusReg
 {
  uint8_t RxBuffer:1;
  uint8_t DataOverrun:1;
@@ -46,9 +46,9 @@ struct S7841StatusReg
 void* ThreadFunction(void *param);//функция потока
 
 //****************************************************************************************************
-//Класс управления платой CAN 7841
+//Класс управления платой CAN PCI-7841
 //****************************************************************************************************
-class C7841
+class CPCI7841
 {
  //-дружественные функции и классы---------------------------------------------------------------------
  friend void* ThreadFunction(void *param);
@@ -56,7 +56,6 @@ class C7841
  private: 	
   static const uint32_t CAN7841_VendorID=0x144A;//идентификатор производителя
   static const uint32_t CAN7841_DeviceID=0x7841;//идентификатор устройства
-  static const uint32_t CAN_CHANNEL_AMOUNT=2;//два канала на плате
   static const uint32_t THREAD_PRIORITY=50;//приоритет потока
   static const uint32_t RECEIVER_RING_BUFFER_SIZE=500;//размер очереди приёма данных
   static const uint32_t TRANSMITTER_RING_BUFFER_SIZE=500;//размер очереди передачи данных
@@ -64,35 +63,36 @@ class C7841
   uint32_t DeviceIndex;//номер устройства на шине
   int PCI_Handle;//дескриптор PCI
   
-  C7841CANChannel c7841CANChannel[CAN_CHANNEL_AMOUNT];//настройки канала
+  CPCI7841CANChannel cPCI7841CANChannel[CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT];//настройки канала
   
   sigevent CANInterruptEvent;//событие прерывания CAN
   
   CUniquePtr<CThread> cThread_Ptr;//указатель на поток управления
   //класс защищённой части
-  CUniquePtr<C7841ProtectedPart> c7841ProtectedPart_Ptr;//указатель на класс защищённой части
+  CUniquePtr<CPCI7841ProtectedPart> cPCI7841ProtectedPart_Ptr;//указатель на класс защищённой части
  //-конструктор----------------------------------------------------------------------------------------
  public:
-  C7841(uint32_t device_index=0);
+  CPCI7841(uint32_t device_index=0);
  //-деструктор-----------------------------------------------------------------------------------------
-  ~C7841(void);
+  ~CPCI7841(void);
  //-открытые функции-----------------------------------------------------------------------------------
  public:
   bool Init(void);//найти плату на шине PCI и инициализировать
   void Release(void);//освободить ресурсы
   
-  bool CANConfig(uint32_t channel,const C7841CANChannel &c7841CANChannel_Set);//настроить канал
-  bool SendPackage(const C7841CANPackage &c7841CANPackage);//отправить пакет
-  void GetReceivedPackage(std::vector<C7841CANPackage> &vector_C7841CANPackage);//получить принятые пакеты
-  void EnableReceive(uint32_t channel);//разрешить приём данных
-  void DisableReceive(uint32_t channel);//запретить приём данных
+  bool CANConfig(uint32_t channel,const CPCI7841CANChannel &cPCI7841CANChannel_Set);//настроить канал
+  bool SendPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//отправить пакет
+  void GetReceivedPackage(std::vector<CPCI7841CANPackage> &vector_CPCI7841CANPackage);//получить принятые пакеты
+  bool GetOneReceivedPackage(CPCI7841CANPackage &cPCI7841CANPackage);//получить один принятый пакет
+  void EnableReceiver(uint32_t channel);//разрешить приём данных
+  void DisableReceiver(uint32_t channel);//запретить приём данных
   void ClearOverrun(uint32_t channel);//очистить ошибки
-  void ClearReceiveBuffer(uint32_t channel);//очистить буфер приёма
-  void ClearTransmitBuffer(uint32_t channel);//очистить буфер передачи
+  void ClearReceiverBuffer(uint32_t channel);//очистить буфер приёма
+  void ClearTransmitterBuffer(uint32_t channel);//очистить буфер передачи
   uint8_t GetArbitrationLostBit(uint32_t channel);//получить количество ошибок приёма арбитража
   uint8_t GetReceiveErrorCounter(uint32_t channel);//получить количество ошибок приёма
   uint8_t GetTransmitErrorCounter(uint32_t channel);//получить количество ошибок передачи
-  S7841StatusReg GetChannelStatus(uint32_t channel);//получить состояние канала
+  SPCI7841StatusReg GetChannelStatus(uint32_t channel);//получить состояние канала
   uint8_t GetErrorWarningLimit(uint32_t channel);//получить ограничение на количество ошибок
   void SetErrorWarningLimit(uint32_t channel,uint8_t value);//задать ограничение на количество ошибок
   uint8_t GetErrorCode(uint32_t channel);//получить код ошибки    
@@ -106,6 +106,7 @@ class C7841
   void StartThread(void);//запустить поток
   void StopThread(void);//остановить поток  
   void OnInterrupt(void);//выполнить обработку прерывания
+  bool Processing(void);//обработка платы до прерывания
 };
 
 
