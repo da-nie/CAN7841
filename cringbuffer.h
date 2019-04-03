@@ -9,7 +9,7 @@
 //подключаемые библиотеки
 //****************************************************************************************************
 #include <stdint.h>
-#include "cuniqueptr.h"
+#include "cuniquearrayptr.h"
 
 //****************************************************************************************************
 //Класс кольцевого буфера
@@ -20,7 +20,7 @@ class CRingBuffer
 {
  //-переменные-----------------------------------------------------------------------------------------
  private:
-  CUniquePtr<Element> Buffer;//буфер данных
+  CUniqueArrayPtr<Element> Buffer;//буфер данных
   size_t Head;//голова в буфере
   size_t Tail;//хвост в буфере
   size_t Size;//размер буфера
@@ -51,12 +51,12 @@ class CRingBuffer
   bool Pop(Element &element)
   {
    if (Head==Tail) return(false);
-  element=Buffer.Get()[Tail];
+   element=Buffer.Get()[Tail];
    Tail++;
    if (Tail==Size) Tail=0;
    return(true);	
   }
-  //получить сколько байт в кольцевом буфере
+  //получить сколько элементов в кольцевом буфере
   size_t GetDataSize(void) const
   {
    if (Head<Tail) return(Size-Tail+Head);

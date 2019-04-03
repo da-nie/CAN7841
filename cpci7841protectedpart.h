@@ -27,6 +27,22 @@
 //класс защищённых переменных
 class CPCI7841ProtectedPart
 {
+ public:	
+ //-структуры------------------------------------------------------------------------------------------
+  #pragma pack(1)
+  //регистр статуса
+  struct SPCI7841StatusReg
+  {
+   uint8_t RxBuffer:1;
+   uint8_t DataOverrun:1;
+   uint8_t TxBuffer:1;
+   uint8_t TxEnd:1;
+   uint8_t RxStatus:1;
+   uint8_t TxStatus:1;
+   uint8_t ErrorStatus:1;
+   uint8_t BusStatus:1;
+  };
+  #pragma pack()	
  //-переменные-----------------------------------------------------------------------------------------
  public:  	  	  	
   CMutex cMutex;//мютекс для доступа к классу
@@ -62,9 +78,21 @@ class CPCI7841ProtectedPart
   bool GetReceivedPackage(CPCI7841CANPackage &cPCI7841CANPackage);//получить принятый пакет
   bool SendPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//добавить пакет для отправки
   void OnInterrupt(void);//обработчик прерывания
-  void ClearTransmitterBuffer(void);//очистить буфер передатчика
-  void ClearReceiverBuffer(void);//очистить буфер приёмника
+  void ClearTransmitterBuffer(uint32_t channel);//очистить буфер передатчика
+  void ClearReceiverBuffer(uint32_t channel);//очистить буфер приёмника
   void TransmittProcessing(uint32_t channel);//выполнить передачу данных, если это возможно
+  void EnableReceiver(uint32_t channel);//разрешить приём данных
+  void DisableReceiver(uint32_t channel);//запретить приём данных
+  void ClearOverrun(uint32_t channel);//очистить ошибки
+  uint8_t GetArbitrationLostBit(uint32_t channel);//получить количество ошибок приёма арбитража
+  uint8_t GetReceiveErrorCounter(uint32_t channel);//получить количество ошибок приёма
+  uint8_t GetTransmittErrorCounter(uint32_t channel);//получить количество ошибок передачи
+  SPCI7841StatusReg GetChannelStatus(uint32_t channel);//получить состояние канала
+  uint8_t GetErrorWarningLimit(uint32_t channel);//получить ограничение на количество ошибок
+  void SetErrorWarningLimit(uint32_t channel,uint8_t value);//задать ограничение на количество ошибок
+  uint8_t GetErrorCode(uint32_t channel);//получить код ошибки    
+  
+  
  //-закрытые функции-----------------------------------------------------------------------------------
  private:
   void OnInterruptChannel(uint32_t channel);//обработчик прерывания канала 

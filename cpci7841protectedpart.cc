@@ -15,6 +15,7 @@ CPCI7841ProtectedPart::CPCI7841ProtectedPart(uint32_t receiver_buffer_size,uint3
 {
  ISR_CANInterruptID=-1;
  DeviceHandle=NULL;
+ 
  cRingBuffer_Receiver_Ptr.Set(new CRingBuffer<CPCI7841CANPackage>(receiver_buffer_size));
  for(uint32_t n=0;n<CAN_CHANNEL_AMOUNT;n++)
  {
@@ -43,7 +44,7 @@ void CPCI7841ProtectedPart::OnInterruptChannel(uint32_t channel)
  uint64_t offset=channel*128;
  uint8_t flag=ReadRegister(offset+3);
  if (flag&0x01) ReceivePackageChannel(channel);//получаем пакеты с канала
- if (flag&0x02) TransmittPackageChannel(channel);//передача пакета завершена, отправляем новые пакеты в канал	
+ if (flag&0x02) TransmittPackageChannel(channel);//передача пакета завершена, отправляем новые пакеты в канал
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -98,6 +99,7 @@ void CPCI7841ProtectedPart::ReceivePackageChannel(uint32_t channel)
   }
   cPCI7841CANPackage.ChannelIndex=channel;
   cRingBuffer_Receiver_Ptr.Get()->Push(cPCI7841CANPackage);
+  
   //очищаем буфер приёма
   WriteRegister(offset+1,0x04);
  }
@@ -120,8 +122,8 @@ bool CPCI7841ProtectedPart::TransmittPackage(const CPCI7841CANPackage &cPCI7841C
  uint32_t channel=cPCI7841CANPackage.ChannelIndex;
  uint64_t offset=channel*128;
  //узнаем состояние передачи
- uint8_t v=ReadRegister(offset+2);
- if ((v&0x04)==0) return(false);//передача невозможна
+ SPCI7841StatusReg sPCI7841StatusReg=GetChannelStatus(channel);
+ if (sPCI7841StatusReg.TxBuffer==0) return(false);//передача невозможна
  uint64_t data_begin=0;
  if (cPCI7841CANPackage.ExtendedMode==false)//обычный режим
  {
@@ -147,6 +149,7 @@ bool CPCI7841ProtectedPart::TransmittPackage(const CPCI7841CANPackage &cPCI7841C
  } 
  //запускаем передачу
  WriteRegister(offset+1,0x01);
+ TransmittIsDone[channel]=false;
  return(true);
 }
 
@@ -373,24 +376,37 @@ void CPCI7841ProtectedPart::OnInterrupt(void)
  for(uint32_t n=0;n<CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT;n++) OnInterruptChannel(n);
  ClearIRQ();
 }
+
+
+
+
 //----------------------------------------------------------------------------------------------------
 //очистить буфер передатчика
 //----------------------------------------------------------------------------------------------------
-void CPCI7841ProtectedPart::ClearTransmitterBuffer(void)
+void CPCI7841ProtectedPart::ClearTransmitterBuffer(uint32_t channel)
 {
- for(uint32_t n=0;n<CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT;n++) 
- {
-  cRingBuffer_Transmitter_Ptr[n].Get()->Reset();
-  TransmittIsDone[n]=true;
- }
+ uint64_t offset=channel*128;
+ WriteRegister(offset+1,0x02);
+ 
+ cRingBuffer_Transmitter_Ptr[channel].Get()->Reset();
+ TransmittIsDone[channel]=true;
 }
 //----------------------------------------------------------------------------------------------------
 //очистить буфер приёмника
 //----------------------------------------------------------------------------------------------------
-void CPCI7841ProtectedPart::ClearReceiverBuffer(void)
+void CPCI7841ProtectedPart::ClearReceiverBuffer(uint32_t channel)
 {
+ //буфер приёмника в данный момент один, так что очищаем его целиком и так же очищаем буфер платы для канала
+ uint64_t offset=channel*128;
+ while (1)
+ {
+  uint8_t b=ReadRegister(offset+29);
+  if (b==0) break;
+  WriteRegister(offset+1,0x04); 	
+ }
  cRingBuffer_Receiver_Ptr.Get()->Reset();
 }
+
 //----------------------------------------------------------------------------------------------------
 //выполнить передачу данных, если это возможно
 //----------------------------------------------------------------------------------------------------
@@ -401,6 +417,99 @@ void CPCI7841ProtectedPart::TransmittProcessing(uint32_t channel)
  CPCI7841CANPackage cPCI7841CANPackage; 
  if (cRingBuffer_Transmitter_Ptr[channel].Get()->Pop(cPCI7841CANPackage)==false) return;//нечего передавать
  //запускаем передачу
- TransmittIsDone[channel]=false;
  TransmittPackage(cPCI7841CANPackage);
+}
+
+//----------------------------------------------------------------------------------------------------
+//разрешить приём данных
+//----------------------------------------------------------------------------------------------------
+void CPCI7841ProtectedPart::EnableReceiver(uint32_t channel)
+{
+ uint64_t offset=channel*128;
+ uint8_t byte=ReadRegister(offset+4);
+ WriteRegister(offset+4,byte|0x01);
+}
+//----------------------------------------------------------------------------------------------------
+//запретить приём данных
+//----------------------------------------------------------------------------------------------------
+void CPCI7841ProtectedPart::DisableReceiver(uint32_t channel)
+{
+ uint64_t offset=channel*128;	
+ uint8_t byte=ReadRegister(offset+4);
+ WriteRegister(offset+4,byte&(0xff^0x01));
+}
+//----------------------------------------------------------------------------------------------------
+//очистить ошибки
+//----------------------------------------------------------------------------------------------------
+void CPCI7841ProtectedPart::ClearOverrun(uint32_t channel)
+{
+ uint64_t offset=channel*128;
+ //очищаем ошибки
+ WriteRegister(offset+1,0x08);
+ //разрешаем прерывания ошибки и приёма данных
+ uint8_t byte=ReadRegister(offset+4); 
+ WriteRegister(offset+4,byte|0x09);
+}
+//----------------------------------------------------------------------------------------------------
+//получить количество ошибок приёма арбитража
+//----------------------------------------------------------------------------------------------------
+uint8_t CPCI7841ProtectedPart::GetArbitrationLostBit(uint32_t channel)
+{
+ uint64_t offset=channel*128;
+ return(ReadRegister(offset+11));
+}
+
+//----------------------------------------------------------------------------------------------------
+//получить количество ошибок приёма
+//----------------------------------------------------------------------------------------------------
+uint8_t CPCI7841ProtectedPart::GetReceiveErrorCounter(uint32_t channel)
+{
+ uint64_t offset=channel*128;
+ return(ReadRegister(offset+14));
+}
+//----------------------------------------------------------------------------------------------------
+//получить количество ошибок передачи
+//----------------------------------------------------------------------------------------------------
+uint8_t CPCI7841ProtectedPart::GetTransmittErrorCounter(uint32_t channel)
+{
+ uint64_t offset=channel*128;
+ return(ReadRegister(offset+15));
+}
+//----------------------------------------------------------------------------------------------------
+//получить состояние канала
+//----------------------------------------------------------------------------------------------------
+CPCI7841ProtectedPart::SPCI7841StatusReg CPCI7841ProtectedPart::GetChannelStatus(uint32_t channel)
+{
+ SPCI7841StatusReg sPCI7841StatusReg; 
+ uint64_t offset=channel*128; 
+ *(reinterpret_cast<uint8_t*>(&sPCI7841StatusReg))=ReadRegister(offset+2);
+ return(sPCI7841StatusReg);
+}
+//----------------------------------------------------------------------------------------------------
+//получить ограничение на количество ошибок
+//----------------------------------------------------------------------------------------------------
+uint8_t CPCI7841ProtectedPart::GetErrorWarningLimit(uint32_t channel)
+{
+ uint64_t offset=channel*128;
+ return(ReadRegister(offset+13));	
+}
+//----------------------------------------------------------------------------------------------------
+//задать ограничение на количество ошибок
+//----------------------------------------------------------------------------------------------------
+void CPCI7841ProtectedPart::SetErrorWarningLimit(uint32_t channel,uint8_t value)
+{
+ uint64_t offset=channel*128;
+ uint8_t byte=ReadRegister(offset+0);  	
+ //входим в режим сброса
+ WriteRegister(offset+0,0);
+ WriteRegister(offset+13,value);
+ WriteRegister(offset+0,byte);
+}
+//----------------------------------------------------------------------------------------------------
+//получить код ошибки
+//----------------------------------------------------------------------------------------------------
+uint8_t CPCI7841ProtectedPart::GetErrorCode(uint32_t channel)
+{
+ uint64_t offset=channel*128;
+ return(ReadRegister(offset+12));
 }

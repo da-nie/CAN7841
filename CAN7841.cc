@@ -71,7 +71,7 @@ int main(int32_t argc, char *argv[])
   index++;
   delay(1000);
   std::vector<CPCI7841CANPackage> vector_CPCI7841CANPackage;
-  cPCI7841.GetReceivedPackage(vector_CPCI7841CANPackage);
+  cPCI7841.GetAllReceivedPackage(vector_CPCI7841CANPackage);
   size_t size=vector_CPCI7841CANPackage.size();
   if (size>0) 
   {

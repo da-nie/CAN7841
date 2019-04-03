@@ -1,8 +1,8 @@
-#ifndef C_UNIQUE_PTR_H
-#define C_UNIQUE_PTR_H
+#ifndef C_UNIQUE_ARRAY_PTR_H
+#define C_UNIQUE_ARRAY_PTR_H
 
 //****************************************************************************************************
-//Класс умного указателя для одиночных объектов
+//Класс умного указателя для массивов объектов
 //****************************************************************************************************
 
 //****************************************************************************************************
@@ -11,42 +11,42 @@
 #include <stdio.h>
 
 //****************************************************************************************************
-//Класс умного указателя для одиночных объектов
+//Класс умного указателя для массивов объектов
 //****************************************************************************************************
 
 template<class C>
-class CUniquePtr
+class CUniqueArrayPtr
 {
  private:
-  C *c_Ptr;//указатель на объект	
+  C *c_Ptr;//указатель на массив объектов
  public:
-  CUniquePtr()//конструктор
+  CUniqueArrayPtr()//конструктор
   {
    c_Ptr=NULL;  	
   }
- ~CUniquePtr()//деструктор
+ ~CUniqueArrayPtr()//деструктор
   {
-   if (c_Ptr!=NULL) delete(c_Ptr); 	
+   if (c_Ptr!=NULL) delete[](c_Ptr); 	
    c_Ptr=NULL;
   }
  public: 
-  C* Get(void)//получить указатель на объект
+  C* Get(void)//получить указатель на объекты
   {
    return(c_Ptr);
   }
-  void Set(C *c_Ptr_Set)//задать указатель на объект
+  void Set(C *c_Ptr_Set)//задать указатель на объекты
   {
-   if (c_Ptr!=NULL) delete(c_Ptr);  	
+   if (c_Ptr!=NULL) delete[](c_Ptr);  	
    c_Ptr=c_Ptr_Set;
   }
-  void Release(void)//освободить объект
+  void Release(void)//освободить объекты
   {
-   if (c_Ptr!=NULL) delete(c_Ptr);  	
+   if (c_Ptr!=NULL) delete[](c_Ptr);  	
    c_Ptr=NULL;
   }
  //запрещаем операции копирования и присваивания 
  private:
-  CUniquePtr(const CUniquePtr<C> &cUniquePtr){};//конструктор копирования запрещён
-  CUniquePtr<C>& operator=(const CUniquePtr<C>& cUniquePtr){return(*this);};//оператор "="
+  CUniqueArrayPtr(const CUniquePtr<C> &cUniqueArrayPtr){};//конструктор копирования запрещён
+  CUniqueArrayPtr<C>& operator=(const CUniqueArrayPtr<C>& cUniqueArrayPtr){return(*this);};//оператор "="
 };
 #endif

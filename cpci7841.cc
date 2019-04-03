@@ -142,8 +142,30 @@ bool CPCI7841::Processing(void)
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsExitThread()==true) return(false);
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(true);
-  //запускаем передачу данных на каналах, если она возможна
-  for(uint32_t n=0;n<CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT;n++) cPCI7841ProtectedPart_Ptr.Get()->TransmittProcessing(n);
+  //запускаем передачу данных на каналах, если она возможна, при этом проверяем состояния канала
+  for(uint32_t n=0;n<CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT;n++)
+  {
+   CPCI7841ProtectedPart::SPCI7841StatusReg sPCI7841StatusReg;
+   sPCI7841StatusReg=cPCI7841ProtectedPart_Ptr.Get()->GetChannelStatus(n);
+   
+   /*
+   printf("C:%i ",c);
+   printf("DataO:%i ",sPCI7841StatusReg.DataOverrun);
+   printf("ErrorS:%i ",sPCI7841StatusReg.ErrorStatus);
+   printf("BusS:%i ",sPCI7841StatusReg.BusStatus);
+   printf("     ");
+   */
+   
+   if (sPCI7841StatusReg.DataOverrun!=0)
+   {
+    cPCI7841ProtectedPart_Ptr.Get()->ClearOverrun(n); 
+    static uint32_t counter=0;
+    printf("[%i] Buss off!\r\n",counter);
+    counter++;
+   }
+   //printf("     \r\n");
+   cPCI7841ProtectedPart_Ptr.Get()->TransmittProcessing(n);
+  }
  }
  return(true); 
 }
@@ -152,6 +174,13 @@ bool CPCI7841::Processing(void)
 //открытые функции класса
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+//----------------------------------------------------------------------------------------------------
+//задать индекс устройства на шине
+//----------------------------------------------------------------------------------------------------
+void CPCI7841::SetDeviceIndex(uint32_t device_index)
+{
+ DeviceIndex=device_index;	
+}
 //----------------------------------------------------------------------------------------------------
 //найти плату на шине PCI и инициализировать
 //----------------------------------------------------------------------------------------------------
@@ -185,7 +214,6 @@ bool CPCI7841::Init(void)
 void CPCI7841::Release(void)
 {
  StopThread();
- CANInterruptDetach();
  {
   CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
   {
@@ -221,9 +249,9 @@ bool CPCI7841::SendPackage(const CPCI7841CANPackage &cPCI7841CANPackage)
  }
 }
 //----------------------------------------------------------------------------------------------------
-//получить принятые пакеты
+//получить все принятые пакеты
 //----------------------------------------------------------------------------------------------------
-void CPCI7841::GetReceivedPackage(std::vector<CPCI7841CANPackage> &vector_CPCI7841CANPackage)
+void CPCI7841::GetAllReceivedPackage(std::vector<CPCI7841CANPackage> &vector_CPCI7841CANPackage)
 {
  vector_CPCI7841CANPackage.clear();
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
@@ -237,6 +265,26 @@ void CPCI7841::GetReceivedPackage(std::vector<CPCI7841CANPackage> &vector_CPCI78
   }
  }
 }
+//----------------------------------------------------------------------------------------------------
+//получить не больше заданного количества принятых пакетов
+//----------------------------------------------------------------------------------------------------
+void CPCI7841::GetPartReceivedPackage(std::vector<CPCI7841CANPackage> &vector_CPCI7841CANPackage,size_t counter)
+{
+ vector_CPCI7841CANPackage.clear();
+ CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
+ {
+  while(counter>0)
+  {
+   CPCI7841CANPackage cPCI7841CANPackage;
+   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
+   if (cPCI7841ProtectedPart_Ptr.Get()->GetReceivedPackage(cPCI7841CANPackage)==false) break;
+   vector_CPCI7841CANPackage.push_back(cPCI7841CANPackage);
+   counter--;
+  }
+ }
+}
+
+
 //----------------------------------------------------------------------------------------------------
 //получить один принятый пакет
 //----------------------------------------------------------------------------------------------------
@@ -258,9 +306,7 @@ void CPCI7841::EnableReceiver(uint32_t channel)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
-  uint64_t offset=channel*128;
-  uint8_t byte=cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+4);
-  cPCI7841ProtectedPart_Ptr.Get()->WriteRegister(offset+4,byte|0x01);
+  cPCI7841ProtectedPart_Ptr.Get()->EnableReceiver(channel);
  }
 }
 //----------------------------------------------------------------------------------------------------
@@ -272,9 +318,7 @@ void CPCI7841::DisableReceiver(uint32_t channel)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
-  uint64_t offset=channel*128;	
-  uint8_t byte=cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+4);
-  cPCI7841ProtectedPart_Ptr.Get()->WriteRegister(offset+4,byte&(0xff^0x01));
+  cPCI7841ProtectedPart_Ptr.Get()->DisableReceiver(channel);
  }
 }
 //----------------------------------------------------------------------------------------------------
@@ -286,12 +330,7 @@ void CPCI7841::ClearOverrun(uint32_t channel)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
-  uint64_t offset=channel*128;
-  //очищаем ошибки
-  cPCI7841ProtectedPart_Ptr.Get()->WriteRegister(offset+1,0x08);
-  //разрешаем прерывания ошибки и приёма данных
-  uint8_t byte=cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+4); 
-  cPCI7841ProtectedPart_Ptr.Get()->WriteRegister(offset+4,byte|0x09);
+  cPCI7841ProtectedPart_Ptr.Get()->ClearOverrun(channel);
  }
 }
 //----------------------------------------------------------------------------------------------------
@@ -303,13 +342,8 @@ void CPCI7841::ClearReceiverBuffer(uint32_t channel)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
-  uint64_t offset=channel*128;
-//  while (cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+29)!=0)
-  {
-  // cPCI7841ProtectedPart_Ptr.Get()->WriteRegister(offset+1,0x04); 	
-  }
-  cPCI7841ProtectedPart_Ptr.Get()->ClearReceiverBuffer();
- } 
+  cPCI7841ProtectedPart_Ptr.Get()->ClearReceiverBuffer(channel);
+ }
 }
 //----------------------------------------------------------------------------------------------------
 //очистить буфер передачи
@@ -320,9 +354,7 @@ void CPCI7841::ClearTransmitterBuffer(uint32_t channel)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
-  uint64_t offset=channel*128;
-  cPCI7841ProtectedPart_Ptr.Get()->WriteRegister(offset+1,0x02);
-  cPCI7841ProtectedPart_Ptr.Get()->ClearTransmitterBuffer();
+  cPCI7841ProtectedPart_Ptr.Get()->ClearTransmitterBuffer(channel);
  }
 }
 
@@ -335,8 +367,7 @@ uint8_t CPCI7841::GetArbitrationLostBit(uint32_t channel)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(0);
-  uint64_t offset=channel*128;
-  return(cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+11));
+  return(cPCI7841ProtectedPart_Ptr.Get()->GetArbitrationLostBit(channel));
  }
 }
 
@@ -349,36 +380,32 @@ uint8_t CPCI7841::GetReceiveErrorCounter(uint32_t channel)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(0);
-  uint64_t offset=channel*128;
-  return(cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+14));
+  return(cPCI7841ProtectedPart_Ptr.Get()->GetReceiveErrorCounter(channel));
  }
 }
 //----------------------------------------------------------------------------------------------------
 //получить количество ошибок передачи
 //----------------------------------------------------------------------------------------------------
-uint8_t CPCI7841::GetTransmitErrorCounter(uint32_t channel)
+uint8_t CPCI7841::GetTransmittErrorCounter(uint32_t channel)
 {
  if (IsChannelValid(channel)==false) return(0);
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(0);
-  uint64_t offset=channel*128;
-  return(cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+15));
+  return(cPCI7841ProtectedPart_Ptr.Get()->GetTransmittErrorCounter(channel));
  }
 }
 //----------------------------------------------------------------------------------------------------
 //получить состояние канала
 //----------------------------------------------------------------------------------------------------
-SPCI7841StatusReg CPCI7841::GetChannelStatus(uint32_t channel)
+CPCI7841ProtectedPart::SPCI7841StatusReg CPCI7841::GetChannelStatus(uint32_t channel)
 {
- SPCI7841StatusReg sPCI7841StatusReg; 
+ CPCI7841ProtectedPart::SPCI7841StatusReg sPCI7841StatusReg; 
  if (IsChannelValid(channel)==false) return(sPCI7841StatusReg);
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(sPCI7841StatusReg);
-  uint64_t offset=channel*128; 
-  *(reinterpret_cast<uint8_t*>(&sPCI7841StatusReg))=cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+2);
-  return(sPCI7841StatusReg);
+  return(cPCI7841ProtectedPart_Ptr.Get()->GetChannelStatus(channel));
  }
 }
 //----------------------------------------------------------------------------------------------------
@@ -390,8 +417,7 @@ uint8_t CPCI7841::GetErrorWarningLimit(uint32_t channel)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(0);
-  uint64_t offset=channel*128;
-  return(cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+13));	
+  return(cPCI7841ProtectedPart_Ptr.Get()->GetErrorWarningLimit(channel));
  }
 }
 //----------------------------------------------------------------------------------------------------
@@ -403,12 +429,7 @@ void CPCI7841::SetErrorWarningLimit(uint32_t channel,uint8_t value)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
-  uint64_t offset=channel*128;
-  uint8_t byte=cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+0);  	
-  //входим в режим сброса
-  cPCI7841ProtectedPart_Ptr.Get()->WriteRegister(offset+0,0);
-  cPCI7841ProtectedPart_Ptr.Get()->WriteRegister(offset+13,value);
-  cPCI7841ProtectedPart_Ptr.Get()->WriteRegister(offset+0,byte);
+  cPCI7841ProtectedPart_Ptr.Get()->SetErrorWarningLimit(channel,value);
  }
 }
 //----------------------------------------------------------------------------------------------------
@@ -420,8 +441,7 @@ uint8_t CPCI7841::GetErrorCode(uint32_t channel)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(0);
-  uint64_t offset=channel*128;
-  return(cPCI7841ProtectedPart_Ptr.Get()->ReadRegister(offset+12));
+  return(cPCI7841ProtectedPart_Ptr.Get()->GetErrorCode(channel));
  }
 }
 
@@ -445,13 +465,14 @@ void* ThreadFunction(void *param)
  if (param==NULL) return(NULL);	
  CPCI7841 *cPCI7841_Ptr=reinterpret_cast<CPCI7841*>(param); 
  //подключаем прерывание
- cPCI7841_Ptr->CANInterruptAttach(); 
+ cPCI7841_Ptr->CANInterruptAttach();
  while(1)
  {
   if (cPCI7841_Ptr->Processing()==false) break;//выходим из потока
   if (WaitInterrupt()==false) continue;//ждём прерывания
-  cPCI7841_Ptr->OnInterrupt();//выполняем обработчик прерывания
+  cPCI7841_Ptr->OnInterrupt();//выполняем обработчик прерывания  
  }
+ cPCI7841_Ptr->CANInterruptDetach(); 
  return(NULL);	
 }
 
@@ -462,7 +483,7 @@ bool WaitInterrupt(void)
 {
  //задаём таймер ожидания прерывания
  sigevent event_timeout;//событие "время вышло"
- uint64_t timeout=100000;
+ uint64_t timeout=10000;
  SIGEV_UNBLOCK_INIT(&event_timeout);
  TimerTimeout(CLOCK_REALTIME,_NTO_TIMEOUT_INTR,&event_timeout,&timeout,NULL);//тайм-аут ядра на ожидание прерывания
  //ждём прерывания
