@@ -24,7 +24,7 @@
 //протитипы функций
 //****************************************************************************************************
 
-void* ThreadFunction(void *param);//функция потока
+static void* ThreadFunction(void *param);//функция потока
 
 //****************************************************************************************************
 //Класс управления платой CAN PCI-7841
@@ -44,8 +44,6 @@ class CPCI7841
   uint32_t DeviceIndex;//номер устройства на шине
   int PCI_Handle;//дескриптор PCI
   
-  CPCI7841CANChannel cPCI7841CANChannel[CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT];//настройки канала
-  
   sigevent CANInterruptEvent;//событие прерывания CAN  
   CUniquePtr<CThread> cThread_Ptr;//указатель на поток управления
   //класс защищённой части
@@ -62,7 +60,7 @@ class CPCI7841
   void Release(void);//освободить ресурсы
   
   bool CANConfig(uint32_t channel,const CPCI7841CANChannel &cPCI7841CANChannel_Set);//настроить канал
-  bool SendPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//отправить пакет
+  bool TransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//отправить пакет
   void GetAllReceivedPackage(std::vector<CPCI7841CANPackage> &vector_CPCI7841CANPackage);//получить все принятые пакеты
   void GetPartReceivedPackage(std::vector<CPCI7841CANPackage> &vector_CPCI7841CANPackage,size_t counter);//получить не больше заданного количества принятых пакетов
   bool GetOneReceivedPackage(CPCI7841CANPackage &cPCI7841CANPackage);//получить один принятый пакет

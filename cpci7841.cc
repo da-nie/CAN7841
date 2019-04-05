@@ -145,25 +145,7 @@ bool CPCI7841::Processing(void)
   //запускаем передачу данных на каналах, если она возможна, при этом проверяем состояния канала
   for(uint32_t n=0;n<CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT;n++)
   {
-   CPCI7841ProtectedPart::SPCI7841StatusReg sPCI7841StatusReg;
-   sPCI7841StatusReg=cPCI7841ProtectedPart_Ptr.Get()->GetChannelStatus(n);
-   
-   /*
-   printf("C:%i ",c);
-   printf("DataO:%i ",sPCI7841StatusReg.DataOverrun);
-   printf("ErrorS:%i ",sPCI7841StatusReg.ErrorStatus);
-   printf("BusS:%i ",sPCI7841StatusReg.BusStatus);
-   printf("     ");
-   */
-   
-   if (sPCI7841StatusReg.DataOverrun!=0)
-   {
-    cPCI7841ProtectedPart_Ptr.Get()->ClearOverrun(n); 
-    static uint32_t counter=0;
-    printf("[%i] Buss off!\r\n",counter);
-    counter++;
-   }
-   //printf("     \r\n");
+   cPCI7841ProtectedPart_Ptr.Get()->BussOffControl(n);	
    cPCI7841ProtectedPart_Ptr.Get()->TransmittProcessing(n);
   }
  }
@@ -186,7 +168,7 @@ void CPCI7841::SetDeviceIndex(uint32_t device_index)
 //----------------------------------------------------------------------------------------------------
 bool CPCI7841::Init(void)
 {
- StopThread();	
+ Release();	
  //подключаем порты
  {
   CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
@@ -232,20 +214,20 @@ bool CPCI7841::CANConfig(uint32_t channel,const CPCI7841CANChannel &cPCI7841CANC
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(false);
-  cPCI7841CANChannel[channel]=cPCI7841CANChannel_Set;
-  return(cPCI7841ProtectedPart_Ptr.Get()->CANConfig(channel,cPCI7841CANChannel[channel]));
+  return(cPCI7841ProtectedPart_Ptr.Get()->CANConfig(channel,cPCI7841CANChannel_Set));
  }
 }
 
 //----------------------------------------------------------------------------------------------------
 //отправить пакет
 //----------------------------------------------------------------------------------------------------
-bool CPCI7841::SendPackage(const CPCI7841CANPackage &cPCI7841CANPackage)
+bool CPCI7841::TransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage)
 {
+ if (IsChannelValid(cPCI7841CANPackage.ChannelIndex)==false) return(false);
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
-  if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(false);
-  return(cPCI7841ProtectedPart_Ptr.Get()->SendPackage(cPCI7841CANPackage));
+  if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(false);  
+  return(cPCI7841ProtectedPart_Ptr.Get()->TransmittPackage(cPCI7841CANPackage));
  }
 }
 //----------------------------------------------------------------------------------------------------
@@ -458,7 +440,7 @@ static bool WaitInterrupt(void);//ожидание прерывания
 //----------------------------------------------------------------------------------------------------
 //функция потока
 //----------------------------------------------------------------------------------------------------
-void* ThreadFunction(void *param)
+static void* ThreadFunction(void *param)
 {
  //разрешаем доступ потоку к ресурсам аппаратуры
  ThreadCtl(_NTO_TCTL_IO,NULL);

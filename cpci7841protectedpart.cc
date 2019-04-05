@@ -3,6 +3,9 @@
 //****************************************************************************************************
 #include "cpci7841protectedpart.h"
 #include <string.h>
+#include <sys/neutrino.h>
+#include <sys/syspage.h>
+
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //конструктор и деструктор класса
@@ -21,6 +24,7 @@ CPCI7841ProtectedPart::CPCI7841ProtectedPart(uint32_t receiver_buffer_size,uint3
  {
   cRingBuffer_Transmitter_Ptr[n].Set(new CRingBuffer<CPCI7841CANPackage>(transmitter_buffer_size));
   TransmittIsDone[n]=true;
+  BussOffTime[n]=0;
  }
 }
 //----------------------------------------------------------------------------------------------------
@@ -28,12 +32,31 @@ CPCI7841ProtectedPart::CPCI7841ProtectedPart(uint32_t receiver_buffer_size,uint3
 //----------------------------------------------------------------------------------------------------
 CPCI7841ProtectedPart::~CPCI7841ProtectedPart()
 {
+ ReleasePCI();	
  cRingBuffer_Receiver_Ptr.Release();
  for(uint32_t n=0;n<CAN_CHANNEL_AMOUNT;n++) cRingBuffer_Transmitter_Ptr[n].Release();
 }
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //закрытые функции класса
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//----------------------------------------------------------------------------------------------------
+//получить, можно ли выполнять действия с каналом
+//----------------------------------------------------------------------------------------------------
+bool CPCI7841ProtectedPart::IsWaitable(uint32_t channel)
+{
+ uint64_t cps=SYSPAGE_ENTRY(qtime)->cycles_per_sec;     
+ long double delta=(1000.0*(ClockCycles()-BussOffTime[channel]))/cps;
+ if (delta<static_cast<long double>(CAN_CHANNEL_BUSS_OFF_DELAY_MS)) return(true);//слишком рано
+ return(false);
+}
+//----------------------------------------------------------------------------------------------------
+//запустить счётчик запрета операций с каналом
+//----------------------------------------------------------------------------------------------------
+void CPCI7841ProtectedPart::SetWaitState(uint32_t channel)
+{
+ BussOffTime[channel]=ClockCycles();
+}
 
 //----------------------------------------------------------------------------------------------------
 //обработчик прерывания канала
@@ -43,14 +66,14 @@ void CPCI7841ProtectedPart::OnInterruptChannel(uint32_t channel)
  if (IsEnabled()==false) return;
  uint64_t offset=channel*128;
  uint8_t flag=ReadRegister(offset+3);
- if (flag&0x01) ReceivePackageChannel(channel);//получаем пакеты с канала
- if (flag&0x02) TransmittPackageChannel(channel);//передача пакета завершена, отправляем новые пакеты в канал
+ if (flag&0x01) ReceiveInterrupt(channel);//получаем пакеты с канала
+ if (flag&0x02) TransmittInterrupt(channel);//передача пакета завершена, отправляем новые пакеты в канал
 }
 
 //----------------------------------------------------------------------------------------------------
 //получить пакеты с канала
 //----------------------------------------------------------------------------------------------------
-void CPCI7841ProtectedPart::ReceivePackageChannel(uint32_t channel)
+void CPCI7841ProtectedPart::ReceiveInterrupt(uint32_t channel)
 {
  CPCI7841CANPackage cPCI7841CANPackage;
  uint64_t offset=channel*128;
@@ -107,7 +130,7 @@ void CPCI7841ProtectedPart::ReceivePackageChannel(uint32_t channel)
 //----------------------------------------------------------------------------------------------------
 //отправить пакеты в канал
 //----------------------------------------------------------------------------------------------------
-void CPCI7841ProtectedPart::TransmittPackageChannel(uint32_t channel)
+void CPCI7841ProtectedPart::TransmittInterrupt(uint32_t channel)
 {
  //отмечаем, что можно передавать пакеты	
  TransmittIsDone[channel]=true;
@@ -117,7 +140,7 @@ void CPCI7841ProtectedPart::TransmittPackageChannel(uint32_t channel)
 //----------------------------------------------------------------------------------------------------
 //отправить пакет
 //----------------------------------------------------------------------------------------------------
-bool CPCI7841ProtectedPart::TransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage)
+bool CPCI7841ProtectedPart::StartTransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage)
 {
  uint32_t channel=cPCI7841CANPackage.ChannelIndex;
  uint64_t offset=channel*128;
@@ -237,6 +260,7 @@ void CPCI7841ProtectedPart::SetExitThread(bool state)
 //----------------------------------------------------------------------------------------------------
 bool CPCI7841ProtectedPart::InitPCI(uint32_t vendor_id,uint32_t device_id,uint32_t device_index)
 {
+ ReleasePCI();
  memset(&PCI_Dev_Info,0,sizeof(pci_dev_info));  
  PCI_Dev_Info.VendorId=vendor_id;
  PCI_Dev_Info.DeviceId=device_id;
@@ -260,6 +284,7 @@ bool CPCI7841ProtectedPart::InitPCI(uint32_t vendor_id,uint32_t device_id,uint32
   vector_CIOControl.push_back(CIOControl(p_port,size));
  } 
  if (vector_CIOControl.size()!=3) return(false);
+ for(uint32_t n=0;n<CAN_CHANNEL_AMOUNT;n++) BussOffTime[n]=0;
  return(true); 
 }
 //----------------------------------------------------------------------------------------------------
@@ -276,6 +301,7 @@ void CPCI7841ProtectedPart::ReleasePCI(void)
 //----------------------------------------------------------------------------------------------------
 bool CPCI7841ProtectedPart::CANConfig(uint32_t channel,const CPCI7841CANChannel &cPCI7841CANChannel_Set)
 {
+ cPCI7841CANChannel[channel]=cPCI7841CANChannel_Set;
  const CPCI7841CANChannel &cPCI7841CANChannel_local=cPCI7841CANChannel_Set;
   
  uint8_t tmp;
@@ -363,7 +389,7 @@ bool CPCI7841ProtectedPart::GetReceivedPackage(CPCI7841CANPackage &cPCI7841CANPa
 //----------------------------------------------------------------------------------------------------
 //добавить пакет для отправки
 //----------------------------------------------------------------------------------------------------
-bool CPCI7841ProtectedPart::SendPackage(const CPCI7841CANPackage &cPCI7841CANPackage)
+bool CPCI7841ProtectedPart::TransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage)
 {	
  cRingBuffer_Transmitter_Ptr[cPCI7841CANPackage.ChannelIndex].Get()->Push(cPCI7841CANPackage);
  return(true);
@@ -413,11 +439,12 @@ void CPCI7841ProtectedPart::ClearReceiverBuffer(uint32_t channel)
 void CPCI7841ProtectedPart::TransmittProcessing(uint32_t channel)
 {
  if (TransmittIsDone[channel]==false) return;
+ if (IsWaitable(channel)==true) return;//передача заблокирована на время Buss-off
  //читаем список для передачи
  CPCI7841CANPackage cPCI7841CANPackage; 
  if (cRingBuffer_Transmitter_Ptr[channel].Get()->Pop(cPCI7841CANPackage)==false) return;//нечего передавать
  //запускаем передачу
- TransmittPackage(cPCI7841CANPackage);
+ StartTransmittPackage(cPCI7841CANPackage);
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -447,8 +474,10 @@ void CPCI7841ProtectedPart::ClearOverrun(uint32_t channel)
  //очищаем ошибки
  WriteRegister(offset+1,0x08);
  //разрешаем прерывания ошибки и приёма данных
- uint8_t byte=ReadRegister(offset+4); 
+ uint8_t byte=ReadRegister(offset+4);
  WriteRegister(offset+4,byte|0x09);
+ //блокируем передачу
+ SetWaitState(channel); 
 }
 //----------------------------------------------------------------------------------------------------
 //получить количество ошибок приёма арбитража
@@ -512,4 +541,45 @@ uint8_t CPCI7841ProtectedPart::GetErrorCode(uint32_t channel)
 {
  uint64_t offset=channel*128;
  return(ReadRegister(offset+12));
+}
+//----------------------------------------------------------------------------------------------------
+//проверить работоспособность контроллера канала и сбросить канал при необходимости
+//----------------------------------------------------------------------------------------------------
+bool CPCI7841ProtectedPart::BussOffControl(uint32_t channel)
+{
+ if (IsWaitable(channel)==true) return(true);//мы уже отрабатываем Buss Off	
+ 
+ SPCI7841StatusReg sPCI7841StatusReg;
+ sPCI7841StatusReg=GetChannelStatus(channel);
+  
+ bool print=false;
+ if (sPCI7841StatusReg.DataOverrun!=0) print=true;
+ if (sPCI7841StatusReg.ErrorStatus!=0) print=true;
+ if (sPCI7841StatusReg.BusStatus!=0) print=true;
+ 
+ 
+ print=false;  
+ if (print==true)
+ {
+  printf("Channel:%i ",channel);
+  printf("DataOverrun:%i ",sPCI7841StatusReg.DataOverrun);
+  printf("ErrorStatus:%i ",sPCI7841StatusReg.ErrorStatus);
+  printf("BusStatus:%i ",sPCI7841StatusReg.BusStatus);
+  printf("\r\n");   	
+ }
+   
+ if (sPCI7841StatusReg.DataOverrun!=0) ClearOverrun(channel);
+ 
+ if (sPCI7841StatusReg.BusStatus!=0)
+ {
+  static uint32_t counter=0;
+  time_t time_main=time(NULL);
+  tm *tm_main=localtime(&time_main);
+  printf("[%02i.%02i.%04i %02i:%02i:%02i] ChannelIndex:%lx Buss Off: %ld!\r\n",tm_main->tm_mday,tm_main->tm_mon+1,tm_main->tm_year+1900,tm_main->tm_hour,tm_main->tm_min,tm_main->tm_sec,channel,static_cast<long>(counter));
+  counter++;
+  CANConfig(channel,cPCI7841CANChannel[channel]);
+  SetWaitState(channel);
+  return(false);
+ } 	
+ return(true);
 }

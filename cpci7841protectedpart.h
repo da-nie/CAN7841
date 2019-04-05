@@ -24,7 +24,6 @@
 //Класс защищённой части платы CAN PCI-7841
 //****************************************************************************************************
 
-//класс защищённых переменных
 class CPCI7841ProtectedPart
 {
  public:	
@@ -48,6 +47,8 @@ class CPCI7841ProtectedPart
   CMutex cMutex;//мютекс для доступа к классу
   static const uint32_t CAN_CHANNEL_AMOUNT=2;//количество каналов на плате  
  private:  
+  static const long double CAN_CHANNEL_BUSS_OFF_DELAY_MS=500.0;//интервал перезапуска линии при Buss-off
+ 
   int32_t ISR_CANInterruptID;//идентификатор прерывания CAN
   pci_dev_info PCI_Dev_Info;//описатель устройства   
   void *DeviceHandle;//дескриптор устройства
@@ -56,6 +57,9 @@ class CPCI7841ProtectedPart
   CUniquePtr<CRingBuffer<CPCI7841CANPackage> > cRingBuffer_Receiver_Ptr;//указатель на класс буфера принятых данных
   bool TransmittIsDone[CAN_CHANNEL_AMOUNT];//завершена ли передача в канале
   CUniquePtr<CRingBuffer<CPCI7841CANPackage> > cRingBuffer_Transmitter_Ptr[CAN_CHANNEL_AMOUNT];//указатель на класс буфера передаваемых данных
+  
+  uint64_t BussOffTime[CAN_CHANNEL_AMOUNT];//время Buss Off
+  CPCI7841CANChannel cPCI7841CANChannel[CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT];//настройки канала  
  //-конструктор----------------------------------------------------------------------------------------
  public:
   CPCI7841ProtectedPart(uint32_t receiver_buffer_size=1,uint32_t transmitter_buffer_size=1);//конструктор
@@ -76,7 +80,7 @@ class CPCI7841ProtectedPart
   void ReleasePCI(void);//освободить PCI
   bool CANConfig(uint32_t channel,const CPCI7841CANChannel &cPCI7841CANChannel_Set);//настроить порт
   bool GetReceivedPackage(CPCI7841CANPackage &cPCI7841CANPackage);//получить принятый пакет
-  bool SendPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//добавить пакет для отправки
+  bool TransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//добавить пакет для отправки
   void OnInterrupt(void);//обработчик прерывания
   void ClearTransmitterBuffer(uint32_t channel);//очистить буфер передатчика
   void ClearReceiverBuffer(uint32_t channel);//очистить буфер приёмника
@@ -90,15 +94,16 @@ class CPCI7841ProtectedPart
   SPCI7841StatusReg GetChannelStatus(uint32_t channel);//получить состояние канала
   uint8_t GetErrorWarningLimit(uint32_t channel);//получить ограничение на количество ошибок
   void SetErrorWarningLimit(uint32_t channel,uint8_t value);//задать ограничение на количество ошибок
-  uint8_t GetErrorCode(uint32_t channel);//получить код ошибки    
-  
-  
+  uint8_t GetErrorCode(uint32_t channel);//получить код ошибки  
+  bool BussOffControl(uint32_t channel);//проверить работоспособность контроллера канала и сбросить канал при необходимости
  //-закрытые функции-----------------------------------------------------------------------------------
  private:
+  bool IsWaitable(uint32_t channel);//получить, можно ли выполнять действия с каналом
+  void SetWaitState(uint32_t channel);//запустить счётчик запрета операций с каналом
   void OnInterruptChannel(uint32_t channel);//обработчик прерывания канала 
-  void ReceivePackageChannel(uint32_t channel);//получить пакеты с канала
-  void TransmittPackageChannel(uint32_t channel);//отправить пакеты в канал
-  bool TransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//добавить пакет для отправки
+  void ReceiveInterrupt(uint32_t channel);//получить пакеты с канала
+  void TransmittInterrupt(uint32_t channel);//отправить пакеты в канал
+  bool StartTransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//добавить пакет для отправки
 };
 #endif
 

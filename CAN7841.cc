@@ -1,5 +1,5 @@
- //****************************************************************************************************
-//Программа-эмулятор комплекса ИПК
+//****************************************************************************************************
+//Программа для работы с CAN PCI-7841
 //****************************************************************************************************
 
 //****************************************************************************************************
@@ -57,7 +57,7 @@ int main(int32_t argc, char *argv[])
  CPCI7841CANChannel cPCI7841CANChannel(true,arbitration,arbitration_mask,CPCI7841CANChannel::CAN_SPEED_500KBS);
  
  cPCI7841.CANConfig(0,cPCI7841CANChannel);
- cPCI7841.CANConfig(0,cPCI7841CANChannel);
+ cPCI7841.CANConfig(1,cPCI7841CANChannel);
  
  CPCI7841CANPackage cPCI7841CANPackage(true,0,false,8,1);
  for(uint8_t n=0;n<cPCI7841CANPackage.Length;n++) cPCI7841CANPackage.Data[n]=n; 
@@ -67,7 +67,7 @@ int main(int32_t argc, char *argv[])
  {  
   cPCI7841CANPackage.Data[0]=index&0xff;
   cPCI7841CANPackage.ChannelIndex=index%2;
-  cPCI7841.SendPackage(cPCI7841CANPackage);
+  cPCI7841.TransmittPackage(cPCI7841CANPackage);
   index++;
   delay(1000);
   std::vector<CPCI7841CANPackage> vector_CPCI7841CANPackage;
