@@ -16,6 +16,8 @@
 //----------------------------------------------------------------------------------------------------
 CPCI7841ProtectedPart::CPCI7841ProtectedPart(uint32_t receiver_buffer_size,uint32_t transmitter_buffer_size)
 {
+ CPS=SYSPAGE_ENTRY(qtime)->cycles_per_sec;
+	
  ISR_CANInterruptID=-1;
  DeviceHandle=NULL;
  
@@ -24,6 +26,7 @@ CPCI7841ProtectedPart::CPCI7841ProtectedPart(uint32_t receiver_buffer_size,uint3
  {
   cRingBuffer_Transmitter_Ptr[n].Set(new CRingBuffer<CPCI7841CANPackage>(transmitter_buffer_size));
   TransmittIsDone[n]=true;
+  TransmittStartTime[n]=0;
   BussOffTime[n]=0;
  }
 }
@@ -45,10 +48,19 @@ CPCI7841ProtectedPart::~CPCI7841ProtectedPart()
 //----------------------------------------------------------------------------------------------------
 bool CPCI7841ProtectedPart::IsWaitable(uint32_t channel)
 {
- uint64_t cps=SYSPAGE_ENTRY(qtime)->cycles_per_sec;     
- long double delta=(1000.0*(ClockCycles()-BussOffTime[channel]))/cps;
+ long double delta=(1000.0*(ClockCycles()-BussOffTime[channel]))/CPS;
  if (delta<static_cast<long double>(CAN_CHANNEL_BUSS_OFF_DELAY_MS)) return(true);//слишком рано
  return(false);
+}
+
+//----------------------------------------------------------------------------------------------------
+//получить, закончилось ли время ожидания передачи
+//----------------------------------------------------------------------------------------------------
+bool CPCI7841ProtectedPart::IsOverTransmittWaitTime(uint32_t channel)
+{
+ long double delta=(1000.0*(ClockCycles()-TransmittStartTime[channel]))/CPS;
+ if (delta<static_cast<long double>(TRANSMITT_WAIT_TIME_MS)) return(false);//время ожидания канала ещё не вышло
+ return(true);
 }
 //----------------------------------------------------------------------------------------------------
 //запустить счётчик запрета операций с каналом
@@ -173,6 +185,7 @@ bool CPCI7841ProtectedPart::StartTransmittPackage(const CPCI7841CANPackage &cPCI
  //запускаем передачу
  WriteRegister(offset+1,0x01);
  TransmittIsDone[channel]=false;
+ TransmittStartTime[channel]=ClockCycles();  
  return(true);
 }
 
@@ -438,6 +451,7 @@ void CPCI7841ProtectedPart::ClearReceiverBuffer(uint32_t channel)
 //----------------------------------------------------------------------------------------------------
 void CPCI7841ProtectedPart::TransmittProcessing(uint32_t channel)
 {
+ if (IsOverTransmittWaitTime(channel)==true) TransmittIsDone[channel]=true; 		
  if (TransmittIsDone[channel]==false) return;
  if (IsWaitable(channel)==true) return;//передача заблокирована на время Buss-off
  //читаем список для передачи

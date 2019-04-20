@@ -13,7 +13,7 @@
 CPCI7841CANChannel::CPCI7841CANChannel(bool extended_mode,uint32_t arbitration,uint32_t arbitration_mask,CAN_SPEED speed,CPCI7841UserSpeed cPCI7841UserSpeed_Set)
 {
  ExtendedMode=extended_mode;
- Arbitration=Arbitration;
+ Arbitration=arbitration;
  ArbitrationMask=arbitration_mask;
  Speed=speed;
  cPCI7841UserSpeed=cPCI7841UserSpeed_Set;	

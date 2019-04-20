@@ -48,6 +48,7 @@ class CPCI7841ProtectedPart
   static const uint32_t CAN_CHANNEL_AMOUNT=2;//количество каналов на плате  
  private:  
   static const long double CAN_CHANNEL_BUSS_OFF_DELAY_MS=500.0;//интервал перезапуска линии при Buss-off
+  static const long double TRANSMITT_WAIT_TIME_MS=1.0;//время ожидания завершения передачи  
  
   int32_t ISR_CANInterruptID;//идентификатор прерывания CAN
   pci_dev_info PCI_Dev_Info;//описатель устройства   
@@ -56,10 +57,13 @@ class CPCI7841ProtectedPart
   std::vector<CIOControl> vector_CIOControl;//массив адресов ввода-вывода платы 
   CUniquePtr<CRingBuffer<CPCI7841CANPackage> > cRingBuffer_Receiver_Ptr;//указатель на класс буфера принятых данных
   bool TransmittIsDone[CAN_CHANNEL_AMOUNT];//завершена ли передача в канале
+  uint64_t TransmittStartTime[CAN_CHANNEL_AMOUNT];//время начала передачи  
   CUniquePtr<CRingBuffer<CPCI7841CANPackage> > cRingBuffer_Transmitter_Ptr[CAN_CHANNEL_AMOUNT];//указатель на класс буфера передаваемых данных
   
   uint64_t BussOffTime[CAN_CHANNEL_AMOUNT];//время Buss Off
   CPCI7841CANChannel cPCI7841CANChannel[CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT];//настройки канала  
+  
+  uint64_t CPS;//частота процессора
  //-конструктор----------------------------------------------------------------------------------------
  public:
   CPCI7841ProtectedPart(uint32_t receiver_buffer_size=1,uint32_t transmitter_buffer_size=1);//конструктор
@@ -99,6 +103,7 @@ class CPCI7841ProtectedPart
  //-закрытые функции-----------------------------------------------------------------------------------
  private:
   bool IsWaitable(uint32_t channel);//получить, можно ли выполнять действия с каналом
+  bool IsOverTransmittWaitTime(uint32_t channel);//получить, закончилось ли время ожидания передачи
   void SetWaitState(uint32_t channel);//запустить счётчик запрета операций с каналом
   void OnInterruptChannel(uint32_t channel);//обработчик прерывания канала 
   void ReceiveInterrupt(uint32_t channel);//получить пакеты с канала
