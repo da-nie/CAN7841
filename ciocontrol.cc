@@ -109,7 +109,8 @@ uint64_t CIOControl::GetSize(void)
 //----------------------------------------------------------------------------------------------------
 bool CIOControl::Out8(uint64_t offset,uint8_t value)
 {
- if (IsPort(offset)==false) return(false);	
+ if (IsPort(offset)==false) return(false);
+ asm volatile ("": : :"memory");
  out8(VirtualPort+offset,value);
  return(true);
 }
@@ -119,5 +120,6 @@ bool CIOControl::Out8(uint64_t offset,uint8_t value)
 uint8_t CIOControl::In8(uint64_t offset)
 {
  if (IsPort(offset)==false) return(0);	
+ asm volatile ("": : :"memory");
  return(in8(VirtualPort+offset));
 }   
