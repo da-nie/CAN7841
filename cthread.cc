@@ -42,7 +42,6 @@ CThread::~CThread()
 //----------------------------------------------------------------------------------------------------
 void CThread::Join(void)
 {
- if (pthread_ID!=-1) pthread_join(pthread_ID,NULL);//;ждём завершения потока 
+ if (pthread_ID!=-1) pthread_join(pthread_ID,NULL);//;ждём завершения потока
  pthread_ID=-1;
-  
 }

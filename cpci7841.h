@@ -34,17 +34,17 @@ class CPCI7841
  //-дружественные функции и классы---------------------------------------------------------------------
  friend void* ThreadFunction(void *param);
  //-переменные-----------------------------------------------------------------------------------------
- private: 	
+ private:
   static const uint32_t CAN7841_VendorID=0x144A;//идентификатор производителя
   static const uint32_t CAN7841_DeviceID=0x7841;//идентификатор устройства
   static const uint32_t THREAD_PRIORITY=50;//приоритет потока
   static const uint32_t RECEIVER_RING_BUFFER_SIZE=500;//размер очереди приёма данных
   static const uint32_t TRANSMITTER_RING_BUFFER_SIZE=500;//размер очереди передачи данных
-    
+
   uint32_t DeviceIndex;//номер устройства на шине
   int PCI_Handle;//дескриптор PCI
-  
-  sigevent CANInterruptEvent;//событие прерывания CAN  
+
+  sigevent CANInterruptEvent;//событие прерывания CAN
   CUniquePtr<CThread> cThread_Ptr;//указатель на поток управления
   //класс защищённой части
   CUniquePtr<CPCI7841ProtectedPart> cPCI7841ProtectedPart_Ptr;//указатель на класс защищённой части
@@ -58,7 +58,7 @@ class CPCI7841
   void SetDeviceIndex(uint32_t device_index);//задать индекс устройства на шине
   bool Init(void);//найти плату на шине PCI и инициализировать
   void Release(void);//освободить ресурсы
-  
+
   bool CANConfig(uint32_t channel,const CPCI7841CANChannel &cPCI7841CANChannel_Set);//настроить канал
   bool TransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage);//отправить пакет
   void GetAllReceivedPackage(std::vector<CPCI7841CANPackage> &vector_CPCI7841CANPackage);//получить все принятые пакеты
@@ -75,7 +75,7 @@ class CPCI7841
   CPCI7841ProtectedPart::SPCI7841StatusReg GetChannelStatus(uint32_t channel);//получить состояние канала
   uint8_t GetErrorWarningLimit(uint32_t channel);//получить ограничение на количество ошибок
   void SetErrorWarningLimit(uint32_t channel,uint8_t value);//задать ограничение на количество ошибок
-  uint8_t GetErrorCode(uint32_t channel);//получить код ошибки    
+  uint8_t GetErrorCode(uint32_t channel);//получить код ошибки
  //-закрытые функции-----------------------------------------------------------------------------------
  private:
   bool IsChannelValid(uint32_t channel);//получить, допустим ли такой номер канала
@@ -84,7 +84,7 @@ class CPCI7841
   bool IsExitThread(void);//получить, нужно ли выходить из потока
   void SetExitThread(bool state);//задать, нужно ли выходить из потока
   void StartThread(void);//запустить поток
-  void StopThread(void);//остановить поток  
+  void StopThread(void);//остановить поток
   void OnInterrupt(void);//выполнить обработку прерывания
   bool Processing(void);//обработка платы до прерывания
 };
@@ -92,5 +92,6 @@ class CPCI7841
 
 
 #endif
+
 
 

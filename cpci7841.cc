@@ -3,9 +3,9 @@
 //****************************************************************************************************
 #include "cpci7841.h"
 #include "craiicmutex.h"
+#include <unix.h>
 #include <string.h>
 #include <unistd.h>
-
 #include <stdio.h>
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -41,7 +41,7 @@ CPCI7841::~CPCI7841()
 bool CPCI7841::IsChannelValid(uint32_t channel)
 {
  if (channel>=CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT) return(false);
- return(true);	
+ return(true);
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -65,7 +65,7 @@ void CPCI7841::CANInterruptDetach(void)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
-  return(cPCI7841ProtectedPart_Ptr.Get()->CANInterruptDetach()); 	
+  return(cPCI7841ProtectedPart_Ptr.Get()->CANInterruptDetach());
  }
 }
 //----------------------------------------------------------------------------------------------------
@@ -76,7 +76,7 @@ bool CPCI7841::IsExitThread(void)
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
   return(cPCI7841ProtectedPart_Ptr.Get()->IsExitThread());
- } 
+ }
 }
 //----------------------------------------------------------------------------------------------------
 //задать, нужно ли выходить из потока
@@ -84,7 +84,7 @@ bool CPCI7841::IsExitThread(void)
 void CPCI7841::SetExitThread(bool state)
 {
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
- {   	
+ {
   cPCI7841ProtectedPart_Ptr.Get()->SetExitThread(state);
  }
 }
@@ -97,11 +97,11 @@ void CPCI7841::StartThread(void)
  SetExitThread(false);
  {
   CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
-  {   	
+  {
    if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
   }
  }
- cThread_Ptr.Set(new CThread(ThreadFunction,THREAD_PRIORITY,this)); 
+ cThread_Ptr.Set(new CThread(ThreadFunction,THREAD_PRIORITY,this));
 }
 //----------------------------------------------------------------------------------------------------
 //остановить поток
@@ -111,7 +111,7 @@ void CPCI7841::StopThread(void)
  SetExitThread(true);
  {
   CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
-  {   	
+  {
    if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return;
   }
  }
@@ -145,11 +145,11 @@ bool CPCI7841::Processing(void)
   //запускаем передачу данных на каналах, если она возможна, при этом проверяем состояния канала
   for(uint32_t n=0;n<CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT;n++)
   {
-   cPCI7841ProtectedPart_Ptr.Get()->BussOffControl(n);	
+   cPCI7841ProtectedPart_Ptr.Get()->BussOffControl(n);
    cPCI7841ProtectedPart_Ptr.Get()->TransmittProcessing(n);
   }
  }
- return(true); 
+ return(true);
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -161,14 +161,14 @@ bool CPCI7841::Processing(void)
 //----------------------------------------------------------------------------------------------------
 void CPCI7841::SetDeviceIndex(uint32_t device_index)
 {
- DeviceIndex=device_index;	
+ DeviceIndex=device_index;
 }
 //----------------------------------------------------------------------------------------------------
 //найти плату на шине PCI и инициализировать
 //----------------------------------------------------------------------------------------------------
 bool CPCI7841::Init(void)
 {
- Release();	
+ Release();
  //подключаем порты
  {
   CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
@@ -182,19 +182,49 @@ bool CPCI7841::Init(void)
    {
     cRAIICMutex.Unlock();
     Release();
-    return(false);	
+    return(false);
    }
   }
  }
  //запускаем поток
  StartThread();
+ //разрешаем прерывания
+ {
+  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
+  {
+   for(uint32_t n=0;n<CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT;n++)
+   {
+    if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==true)
+    {
+     cPCI7841ProtectedPart_Ptr.Get()->DisableAllInterrupt(n);
+     cPCI7841ProtectedPart_Ptr.Get()->EnableReceiver(n);
+     cPCI7841ProtectedPart_Ptr.Get()->EnableTransmiter(n);
+    }
+   }
+  }
+ }	
  return(true);
 }
 //----------------------------------------------------------------------------------------------------
 //освободить ресурсы
 //----------------------------------------------------------------------------------------------------
 void CPCI7841::Release(void)
-{
+{	
+ //запрещаем прерывания
+ {
+  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
+  {
+   for(uint32_t n=0;n<CPCI7841ProtectedPart::CAN_CHANNEL_AMOUNT;n++)
+   {
+    if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==true)
+    {
+     cPCI7841ProtectedPart_Ptr.Get()->DisableReceiver(n);
+     cPCI7841ProtectedPart_Ptr.Get()->DisableTransmiter(n);
+     cPCI7841ProtectedPart_Ptr.Get()->DisableAllInterrupt(n);
+    }
+   }
+  }
+ }
  StopThread();
  {
   CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
@@ -203,7 +233,7 @@ void CPCI7841::Release(void)
   }
  }
  if (PCI_Handle>=0) pci_detach(PCI_Handle);
- PCI_Handle=-1; 
+ PCI_Handle=-1;
 }
 //----------------------------------------------------------------------------------------------------
 //настроить порт
@@ -226,7 +256,7 @@ bool CPCI7841::TransmittPackage(const CPCI7841CANPackage &cPCI7841CANPackage)
  if (IsChannelValid(cPCI7841CANPackage.ChannelIndex)==false) return(false);
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
-  if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(false);  
+  if (cPCI7841ProtectedPart_Ptr.Get()->IsEnabled()==false) return(false);
   return(cPCI7841ProtectedPart_Ptr.Get()->TransmittPackage(cPCI7841CANPackage));
  }
 }
@@ -382,7 +412,7 @@ uint8_t CPCI7841::GetTransmittErrorCounter(uint32_t channel)
 //----------------------------------------------------------------------------------------------------
 CPCI7841ProtectedPart::SPCI7841StatusReg CPCI7841::GetChannelStatus(uint32_t channel)
 {
- CPCI7841ProtectedPart::SPCI7841StatusReg sPCI7841StatusReg; 
+ CPCI7841ProtectedPart::SPCI7841StatusReg sPCI7841StatusReg;
  if (IsChannelValid(channel)==false) return(sPCI7841StatusReg);
  CRAIICMutex cRAIICMutex(&cPCI7841ProtectedPart_Ptr.Get()->cMutex);
  {
@@ -444,18 +474,20 @@ static void* ThreadFunction(void *param)
 {
  //разрешаем доступ потоку к ресурсам аппаратуры
  ThreadCtl(_NTO_TCTL_IO,NULL);
- if (param==NULL) return(NULL);	
- CPCI7841 *cPCI7841_Ptr=reinterpret_cast<CPCI7841*>(param); 
+ sigblock(255);
+ if (param==NULL) return(NULL);
+ CPCI7841 *cPCI7841_Ptr=reinterpret_cast<CPCI7841*>(param);
  //подключаем прерывание
  cPCI7841_Ptr->CANInterruptAttach();
  while(1)
  {
   if (cPCI7841_Ptr->Processing()==false) break;//выходим из потока
   if (WaitInterrupt()==false) continue;//ждём прерывания
-  cPCI7841_Ptr->OnInterrupt();//выполняем обработчик прерывания  
+  cPCI7841_Ptr->OnInterrupt();//выполняем обработчик прерывания
  }
- cPCI7841_Ptr->CANInterruptDetach(); 
- return(NULL);	
+ cPCI7841_Ptr->OnInterrupt();//выполняем обработчик прерывания
+ cPCI7841_Ptr->CANInterruptDetach();
+ return(NULL);
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -470,5 +502,6 @@ bool WaitInterrupt(void)
  TimerTimeout(CLOCK_REALTIME,_NTO_TIMEOUT_INTR,&event_timeout,&timeout,NULL);//тайм-аут ядра на ожидание прерывания
  //ждём прерывания
  if (InterruptWait(0,NULL)<0) return(false);//прерывание не поступало
- return(true);	
+ return(true);
 }
+

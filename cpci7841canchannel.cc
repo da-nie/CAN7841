@@ -16,7 +16,7 @@ CPCI7841CANChannel::CPCI7841CANChannel(bool extended_mode,uint32_t arbitration,u
  Arbitration=arbitration;
  ArbitrationMask=arbitration_mask;
  Speed=speed;
- cPCI7841UserSpeed=cPCI7841UserSpeed_Set;	
+ cPCI7841UserSpeed=cPCI7841UserSpeed_Set;
 }
 //----------------------------------------------------------------------------------------------------
 //деструктор
@@ -34,11 +34,11 @@ CPCI7841CANChannel::~CPCI7841CANChannel()
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 //----------------------------------------------------------------------------------------------------
-//получить, расширенный ли режим 
+//получить, расширенный ли режим
 //----------------------------------------------------------------------------------------------------
 bool CPCI7841CANChannel::IsExtendedMode(void) const
 {
- return(ExtendedMode);	
+ return(ExtendedMode);
 }
 //----------------------------------------------------------------------------------------------------
 //получить, соответствует ли скорость заданной
@@ -46,5 +46,5 @@ bool CPCI7841CANChannel::IsExtendedMode(void) const
 bool CPCI7841CANChannel::IsSpeed(CAN_SPEED speed) const
 {
  if (Speed==speed) return(true);
- return(false);	
+ return(false);
 }

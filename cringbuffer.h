@@ -30,7 +30,7 @@ class CRingBuffer
   {
    Buffer.Set(new Element[size+1]);
    Reset();
-   Size=size;  	
+   Size=size;
   }
  //-деструктор-----------------------------------------------------------------------------------------
   ~CRingBuffer()
@@ -38,14 +38,14 @@ class CRingBuffer
   }
  //-открытые функции-----------------------------------------------------------------------------------
  public:
-  //добавить элемент в кольцевой буфер 
+  //добавить элемент в кольцевой буфер
   void Push(const Element &element)
   {
    Buffer.Get()[Head]=element;
    Head++;
    if (Head==Size) Head=0;
    if (Head==Tail) Tail++;
-   if (Tail==Size) Tail=0;	
+   if (Tail==Size) Tail=0;
   }
   //забрать элемент из кольцевого буфера
   bool Pop(Element &element)
@@ -54,17 +54,17 @@ class CRingBuffer
    element=Buffer.Get()[Tail];
    Tail++;
    if (Tail==Size) Tail=0;
-   return(true);	
+   return(true);
   }
   //получить сколько элементов в кольцевом буфере
   size_t GetDataSize(void) const
   {
    if (Head<Tail) return(Size-Tail+Head);
-   return(Head-Tail);  	
+   return(Head-Tail);
   }
   //получить позицию головы буфера
   size_t GetHeadPos(void) const
-  { 
+  {
    return(Head);
   }
   //получить позицию хвоста буфера
@@ -75,28 +75,29 @@ class CRingBuffer
   //получить общий размер буфера
   size_t GetBufferSize(void) const
   {
-   return(Size);	
+   return(Size);
   }
   //удалить данные из буфера
   void Reset(void)
   {
    Head=0;
-   Tail=0;  	
+   Tail=0;
   }
   //задать позицию хвоста буфера
   void SetTailPos(size_t pos)
   {
    if (pos>=Size) return;
-   Tail=pos;  	
+   Tail=pos;
   }
   //задать позицию головы буфера
   void SetHeadPos(size_t pos)
   {
    if (pos>=Size) return;
-   Head=pos;   	
+   Head=pos;
   }
  //-закрытые функции-----------------------------------------------------------------------------------
  private:
 };
 
 #endif
+

@@ -25,7 +25,7 @@ CIOControl::CIOControl(uint64_t phisical_port,uint64_t size)
  PhisicalPort=0;
  Size=0;
  VirtualPort=MAP_DEVICE_FAILED;
- SetPort(phisical_port,size);   	
+ SetPort(phisical_port,size);
 }
 
 CIOControl::CIOControl(const CIOControl &cIOControl)
@@ -35,13 +35,13 @@ CIOControl::CIOControl(const CIOControl &cIOControl)
  Size=0;
  VirtualPort=MAP_DEVICE_FAILED;
  SetPort(cIOControl.PhisicalPort,cIOControl.Size);
-}   
+}
 //----------------------------------------------------------------------------------------------------
 //деструктор
 //----------------------------------------------------------------------------------------------------
 CIOControl::~CIOControl()
 {
- Release();	
+ Release();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -57,23 +57,23 @@ CIOControl::~CIOControl()
 //----------------------------------------------------------------------------------------------------
 CIOControl& CIOControl::operator=(const CIOControl &cIOControl)
 {
- if (this!=(&cIOControl)) SetPort(cIOControl.PhisicalPort,cIOControl.Size);   	
+ if (this!=(&cIOControl)) SetPort(cIOControl.PhisicalPort,cIOControl.Size);
  return(*this);
-}  
+}
 //----------------------------------------------------------------------------------------------------
 //освободить ресурсы
 //----------------------------------------------------------------------------------------------------
 void CIOControl::Release(void)
 {
- if (VirtualPort!=MAP_DEVICE_FAILED) munmap_device_io(VirtualPort,Size);  
- VirtualPort=MAP_DEVICE_FAILED;    
+ if (VirtualPort!=MAP_DEVICE_FAILED) munmap_device_io(VirtualPort,Size);
+ VirtualPort=MAP_DEVICE_FAILED;
 }
 //----------------------------------------------------------------------------------------------------
 //задать порты
 //----------------------------------------------------------------------------------------------------
 bool CIOControl::SetPort(uint64_t phisical_port,uint64_t size)
 {
- Release();   	
+ Release();
  PhisicalPort=phisical_port;
  Size=size;
  VirtualPort=mmap_device_io(Size,PhisicalPort);
@@ -87,7 +87,7 @@ bool CIOControl::IsPort(uint64_t offset)
 {
  if (VirtualPort==MAP_DEVICE_FAILED) return(false);
  if (offset>=Size) return(false);
- return(true);	
+ return(true);
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -102,8 +102,8 @@ uintptr_t CIOControl::GetPort(void)
 //----------------------------------------------------------------------------------------------------
 uint64_t CIOControl::GetSize(void)
 {
- return(Size); 	
-}   
+ return(Size);
+}
 //----------------------------------------------------------------------------------------------------
 //записать байт в порт
 //----------------------------------------------------------------------------------------------------
@@ -115,11 +115,12 @@ bool CIOControl::Out8(uint64_t offset,uint8_t value)
  return(true);
 }
 //----------------------------------------------------------------------------------------------------
-//считать байт из порта   
+//считать байт из порта
 //----------------------------------------------------------------------------------------------------
 uint8_t CIOControl::In8(uint64_t offset)
 {
- if (IsPort(offset)==false) return(0);	
+ if (IsPort(offset)==false) return(0);
  asm volatile ("": : :"memory");
  return(in8(VirtualPort+offset));
-}   
+}
+

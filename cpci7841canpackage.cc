@@ -12,7 +12,7 @@
 //----------------------------------------------------------------------------------------------------
 CPCI7841CANPackage::CPCI7841CANPackage(bool extended_mode,uint32_t arbitration,bool rtr,uint8_t length,uint32_t channel_index)
 {
- ExtendedMode=extended_mode;	
+ ExtendedMode=extended_mode;
  Arbitration=arbitration;
  RTR=rtr;
  Length=length;

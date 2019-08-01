@@ -16,7 +16,7 @@ CPCI7841UserSpeed::CPCI7841UserSpeed(uint8_t brp,uint8_t tseg1,uint8_t tseg2,uin
  TSeg1=tseg1;
  TSeg2=tseg2;
  SJW=sjw;
- SAM=sam;	
+ SAM=sam;
 }
 //----------------------------------------------------------------------------------------------------
 //деструктор
